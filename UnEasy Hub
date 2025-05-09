@@ -1,13 +1,39 @@
-local HttpService = game:GetService("HttpService")
+-- Removed HttpService, as game:HttpGet is typically used in exploits
 local UserInputService = game:GetService("UserInputService")
 
-local Library = loadstring(HttpService:GetAsync("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+-- Use game:HttpGet (often needs a second 'true' argument for raw content,
+-- but Kavo examples usually show it without, implying their HttpGet returns body directly)
+-- If this line still errors, try: game:HttpGet("URL_HERE", true)
+local kavoSource = game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua")
+if not kavoSource or string.sub(kavoSource, 1, 5) == "<!DOC" then -- Basic check for failed HTTP GET (e.g. GitHub page not raw)
+    warn("Failed to download Kavo UI Library. Check your internet or the URL. Source received:", kavoSource)
+    return
+end
+local success, Library = pcall(loadstring(kavoSource))
+
+if not success or not Library then
+    warn("Failed to load Kavo UI Library from source. Error:", Library) -- 'Library' will be error message on pcall fail
+    return
+end
+
 local Window = Library.CreateLib("UnEasy Hub", "BloodTheme")
+
+-- It's crucial to ensure Window and Window.MainFrame exist after CreateLib
+if not Window or not Window.MainFrame then
+    warn("Kavo UI Library did not initialize correctly or Window.MainFrame is missing.")
+    if Window then
+        print("Window object exists, dumping properties:")
+        for i,v in pairs(Window) do
+            print(i,v)
+        end
+    end
+    return
+end
 
 local draggableFrame = Window.MainFrame
 
 if not draggableFrame or not draggableFrame:IsA("GuiObject") then
-    warn("Kavo-UI-Library Draggable: Could not find the main draggable frame (e.g., Window.MainFrame). Dragging will not work.")
+    warn("Kavo-UI-Library Draggable: Could not find the main draggable frame (Window.MainFrame). Dragging will not work.")
     return
 end
 
@@ -22,7 +48,8 @@ local startPosition = nil
 draggableFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1Down or input.UserInputType == Enum.UserInputType.Touch then
         local focusedTextBox = UserInputService:GetFocusedTextBox()
-        if focusedTextBox and focusedTextBox:IsDescendantOf(Window.MainFrame) then
+        -- Check if focusedTextBox exists and is a descendant of the main UI window
+        if focusedTextBox and Window.MainFrame and focusedTextBox:IsDescendantOf(Window.MainFrame) then
             return
         end
 
@@ -53,17 +80,25 @@ UserInputService.InputEnded:Connect(function(input)
 end)
  
 local Tab = Window:NewTab("Main")
-
 local Section = Tab:NewSection("Bonds")
 
 Section:NewButton("ButtonText", "ButtonInfo", function()
-    -- https://scriptblox.com/script/Dead-Rails-Alpha-Dead-rails-Auto-bonds-39214
-
     getgenv().BondFarmSetting = {
-		tweenDuration = 20,
-		AutoExecute = true,
-		CheckMissedBonds = true -- doesn't really work
-	}
-
-    loadstring(game:HttpGet('https://raw.githubusercontent.com/DonjoScripts/Public-Scripts/refs/heads/Slap-Battles/TheFastestBondStealer.lua'))()
+        tweenDuration = 20,
+        AutoExecute = true,
+        CheckMissedBonds = true
+    }
+    
+    -- This also relies on game:HttpGet working in your executor
+    local bondScriptSource = game:HttpGet('https://raw.githubusercontent.com/DonjoScripts/Public-Scripts/refs/heads/Slap-Battles/TheFastestBondStealer.lua')
+    if bondScriptSource then
+        local suc, err = pcall(loadstring(bondScriptSource))
+        if not suc then
+            warn("Failed to load/run bond script:", err)
+        end
+    else
+        warn("Failed to download bond script.")
+    end
 end)
+
+print("UnEasy Hub Initialized. Draggable UI should be active.")
