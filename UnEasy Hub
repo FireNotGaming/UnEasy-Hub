@@ -1,21 +1,57 @@
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
 
+local Library = loadstring(HttpService:GetAsync("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 local Window = Library.CreateLib("UnEasy Hub", "BloodTheme")
 
--- Make UI draggable
-task.wait(1)
-for _, gui in pairs(game:GetService("CoreGui"):GetChildren()) do
-    if gui:FindFirstChild("Main") then
-        local main = gui:FindFirstChild("Main")
-        if main:IsA("Frame") then
-            main.Active = true
-            main.Draggable = true
-            print("UI is now draggable")
-        end
-    end
-end
-tab
+local draggableFrame = Window.MainFrame
 
+if not draggableFrame or not draggableFrame:IsA("GuiObject") then
+    warn("Kavo-UI-Library Draggable: Could not find the main draggable frame (e.g., Window.MainFrame). Dragging will not work.")
+    return
+end
+
+draggableFrame.Active = true
+draggableFrame.Selectable = true
+
+local dragging = false
+local dragInput = nil
+local dragStart = nil
+local startPosition = nil
+
+draggableFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1Down or input.UserInputType == Enum.UserInputType.Touch then
+        local focusedTextBox = UserInputService:GetFocusedTextBox()
+        if focusedTextBox and focusedTextBox:IsDescendantOf(Window.MainFrame) then
+            return
+        end
+
+        dragging = true
+        dragInput = input
+        dragStart = input.Position
+        startPosition = draggableFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and dragInput and input == dragInput then
+        local delta = input.Position - dragStart
+        draggableFrame.Position = UDim2.new(
+            startPosition.X.Scale,
+            startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale,
+            startPosition.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if dragging and dragInput and input == dragInput then
+        dragging = false
+        dragInput = nil
+    end
+end)
+ 
 local Tab = Window:NewTab("Main")
 
 local Section = Tab:NewSection("Bonds")
