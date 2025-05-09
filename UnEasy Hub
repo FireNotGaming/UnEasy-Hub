@@ -1,0 +1,21 @@
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+
+local Window = Library.CreateLib("EnEasy Hub", "BloodTheme")
+
+local Tab = Window:NewTab("Main")
+
+local Section = Tab:NewSection("Bonds")
+
+Section:NewButton("Auto Bonds", "Collects Bonds For You!", function()
+    -- https://scriptblox.com/script/Dead-Rails-Alpha-Dead-rails-Auto-bonds-39214
+
+    getgenv().BondFarmSetting = {
+    		tweenDuration = 20,
+		    AutoExecute = true,
+		    CheckMissedBonds = true -- doesn't really work
+	    }
+
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/DonjoScripts/Public-Scripts/refs/heads/Slap-Battles/TheFastestBondStealer.lua'))()
+-- Reminder: Tween duration means how long you will travel to the end, so don't increase it too high (<60) or decrease it too low (>10)
+-- Auto execute: use queue_on_teleport to automatically re-execute, better work with auto executor in your executor
+end)
