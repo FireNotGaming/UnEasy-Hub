@@ -37,9 +37,9 @@ local flyEnabled = false
 local bodyVelocity = nil
 
 -- Speed Hack Toggle
-local SpeedToggle = CharacterSection:CreateToggle({
+local SpeedToggle = MainTab:CreateToggle({
     Name = "Speed Hack",
-    CurrentValue = false,
+    Default = false,
     Flag = "SpeedHack",
     Callback = function(Value)
         speedHackEnabled = Value
@@ -56,7 +56,7 @@ CharacterSection:CreateSlider({
     Range = {16, 200},
     Increment = 1,
     Suffix = "stud/s",
-    CurrentValue = 16,
+    Default = 16,
     Flag = "SpeedAmount",
     Callback = function(Value)
         currentSpeedValue = Value
@@ -70,9 +70,9 @@ CharacterSection:CreateSlider({
 })
 
 -- Jump Hack Toggle
-local JumpToggle = CharacterSection:CreateToggle({
+local JumpToggle = MainTab:CreateToggle({
     Name = "Jump Hack",
-    CurrentValue = false,
+    Default = false,
     Flag = "JumpHack",
     Callback = function(Value)
         jumpPowerEnabled = Value
@@ -89,7 +89,7 @@ CharacterSection:CreateSlider({
     Range = {50, 500},
     Increment = 5,
     Suffix = "power",
-    CurrentValue = 50,
+    Default = 50,
     Flag = "JumpPower",
     Callback = function(Value)
         currentJumpPowerValue = Value
@@ -103,9 +103,9 @@ CharacterSection:CreateSlider({
 })
 
 -- Noclip Toggle
-local NoclipToggle = CharacterSection:CreateToggle({
+local NoclipToggle = MainTab:CreateToggle({
     Name = "Noclip",
-    CurrentValue = false,
+    Default = false,
     Flag = "Noclip",
     Callback = function(Value)
         noclipEnabled = Value
@@ -121,9 +121,9 @@ local NoclipToggle = CharacterSection:CreateToggle({
 })
 
 -- Fly Toggle
-local FlyToggle = CharacterSection:CreateToggle({
+local FlyToggle = MainTab:CreateToggle({
     Name = "Fly",
-    CurrentValue = false,
+    Default = false,
     Flag = "Fly",
     Callback = function(Value)
         flyEnabled = Value
