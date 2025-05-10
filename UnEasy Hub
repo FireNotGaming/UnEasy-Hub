@@ -1,74 +1,89 @@
--- Load the library (still pointing to ZezumeLib as per your initial link,
--- but we will call it OrionLib and use Orion's API structure)
+-- Load the library (mocking OrionLib API, but using ZezumeLib source from your link)
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/GRPGaming/Key-System/refs/heads/Xycer-Hub-Script/ZusumeLib(Slider)"))()
 
--- If the loaded library is nil or not a table, it means loading failed or it's not a standard library.
+-- Check if the library loaded successfully
 if not OrionLib or type(OrionLib) ~= "table" then
-    warn("Failed to load the library or it's not in the expected format. Script will not run correctly.")
-    return
+    warn("Failed to load the UI library or it's not in the expected table format. Script will not run correctly.")
+    return -- Stop script execution if library failed to load
 end
 
--- Create the Window (using Orion's options table)
+-- Create the Main Window for the UI
 local Window = OrionLib:MakeWindow({
-    Name = "UnEasy Hub",
-    HidePremium = false,
-    SaveConfig = true,
-    ConfigFolder = "UnEasyHubConfig"
+    Name = "UnEasy Hub",         -- Title of the window
+    HidePremium = false,        -- An option often found in UI libraries (set to false)
+    SaveConfig = true,          -- An option to enable saving UI settings (e.g., toggle states, slider values)
+    ConfigFolder = "UnEasyHubConfig" -- Name of the folder where config might be saved
 })
 
--- Create the Main Tab (using Orion's options table)
+-- Create a Tab within the Window
 local MainTab = Window:MakeTab({
-    Name = "Main",
-    Icon = "rbxassetid://13516625108", -- Example icon
-    PremiumOnly = false
+    Name = "Main",              -- Name of the tab
+    Icon = "rbxassetid://13516625108", -- Optional: An asset ID for an icon (Roblox logo example)
+    PremiumOnly = false         -- If this tab should only be visible to "premium" users (not used here)
 })
 
--- Create the Character Section (using Orion's options table)
+-- Create a Section within the "Main" Tab
 local CharacterSection = MainTab:AddSection({
-    Name = "Character"
+    Name = "Character"          -- Name of the section, e.g., "Character Mods"
 })
 
--- ========== State Variables ==========
--- Speed
-local speedHackEnabled = false
-local currentSpeedValue = 16 -- Default WalkSpeed
-local originalWalkSpeed = 16 -- To reset to
+-- ========== State Variables (To keep track of settings and original values) ==========
 
--- JumpPower
-local jumpPowerEnabled = false
-local currentJumpPowerValue = 50 -- Default JumpPower
-local originalJumpPower = 50 -- To reset to
+-- Speed Hack Variables
+local speedHackEnabled = false      -- Is the speed hack currently active? (boolean: true/false)
+local currentSpeedValue = 16        -- The speed value currently set by the slider (Roblox default WalkSpeed)
+local originalWalkSpeed = 16        -- The player's WalkSpeed before any changes (Roblox default WalkSpeed)
+
+-- JumpPower Hack Variables
+local jumpPowerEnabled = false      -- Is the jump power hack currently active?
+local currentJumpPowerValue = 50    -- The jump power value currently set by the slider (Roblox default JumpPower)
+local originalJumpPower = 50        -- The player's JumpPower before any changes (Roblox default JumpPower)
+
+-- Variables to store references to the slider UI objects themselves
+-- This is needed to programmatically update the slider's displayed value (e.g., on reset)
+local speedSliderObject
+local jumpPowerSliderObject
 
 -- ========== Utility Functions ==========
+
+-- Function to safely get the Local Player, their Character, and their Humanoid
 local function getPlayerCharacterHumanoid()
-    local player = game:GetService("Players").LocalPlayer
+    local player = game:GetService("Players").LocalPlayer -- Get the current local player
     if player then
-        local character = player.Character
+        local character = player.Character -- Get the player's character model
         if character then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                return player, character, humanoid
-            end
+            local humanoid = character:FindFirstChildOfClass("Humanoid") -- Find the Humanoid within the character
+            return player, character, humanoid -- Return all three (humanoid can be nil if not found)
         end
     end
-    return nil, nil, nil
+    return nil, nil, nil -- Return nils if any part is missing
 end
 
--- Function to initialize/update original character properties
-local function initializeCharacterProperties()
-    local _, _, humanoid = getPlayerCharacterHumanoid()
+-- Function to initialize/update original character properties (WalkSpeed, JumpPower)
+-- AND update the visual display of the sliders to match the current actual values.
+local function initializeCharacterPropertiesAndSliders()
+    local _, _, humanoid = getPlayerCharacterHumanoid() -- Get the humanoid
     if humanoid then
-        -- Speed Properties
+        -- --- Speed Properties ---
+        -- If originalWalkSpeed is still the script's default (16) AND the humanoid's current WalkSpeed is different,
+        -- then update originalWalkSpeed to the humanoid's actual current WalkSpeed.
         if originalWalkSpeed == 16 and humanoid.WalkSpeed ~= 16 then
             originalWalkSpeed = humanoid.WalkSpeed
             print("Original WalkSpeed captured:", originalWalkSpeed)
         end
+        -- If currentSpeedValue (backing the slider) is still the script's default (16) AND humanoid's speed is different,
+        -- then update currentSpeedValue. This ensures the slider starts at the player's actual current speed.
         if currentSpeedValue == 16 and humanoid.WalkSpeed ~= 16 then
              currentSpeedValue = humanoid.WalkSpeed
              print("Initial CurrentSpeedValue set to match actual:", currentSpeedValue)
+             -- If the speedSliderObject exists and has a SetValue method, update its visual display.
+             -- The 'false' argument typically means "don't run the slider's own callback when setting this value".
+             if speedSliderObject and speedSliderObject.SetValue then
+                 speedSliderObject:SetValue(currentSpeedValue, false)
+             end
         end
 
-        -- JumpPower Properties
+        -- --- JumpPower Properties (similar logic as speed) ---
         if originalJumpPower == 50 and humanoid.JumpPower ~= 50 then
             originalJumpPower = humanoid.JumpPower
             print("Original JumpPower captured:", originalJumpPower)
@@ -76,62 +91,80 @@ local function initializeCharacterProperties()
         if currentJumpPowerValue == 50 and humanoid.JumpPower ~= 50 then
              currentJumpPowerValue = humanoid.JumpPower
              print("Initial CurrentJumpPowerValue set to match actual:", currentJumpPowerValue)
+             if jumpPowerSliderObject and jumpPowerSliderObject.SetValue then
+                 jumpPowerSliderObject:SetValue(currentJumpPowerValue, false)
+             end
         end
+    else
+        -- If humanoid is not found (e.g., at the very start of game loading):
+        -- Ensure our 'current' values (that sliders might use as defaults) are the script's base defaults.
+        -- Original values also remain script defaults until a humanoid is found to get actuals.
+        currentSpeedValue = 16
+        originalWalkSpeed = 16
+        currentJumpPowerValue = 50
+        originalJumpPower = 50
     end
 end
 
--- Initial setup and on respawn
-initializeCharacterProperties()
-game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character)
-    task.wait(0.5) -- Wait for humanoid to be reliably present
-    initializeCharacterProperties()
-end)
 
+-- ========== Speed Hack UI Controls ==========
 
--- ========== Speed Hack Controls ==========
+-- Toggle Button for Speed Hack
 CharacterSection:AddToggle({
-    Name = "Speed Hack",
-    Default = speedHackEnabled,
-    Callback = function(value)
-        speedHackEnabled = value
+    Name = "Speed Hack",             -- Display name of the toggle
+    Default = speedHackEnabled,      -- Initial state (off by default)
+    Callback = function(value)       -- Function to run when the toggle is clicked
+        speedHackEnabled = value     -- Update our state variable
         print("Speed Hack Toggled: " .. tostring(speedHackEnabled))
         local _, _, humanoid = getPlayerCharacterHumanoid()
-        if not humanoid then return end
+        if not humanoid then return end -- Exit if no humanoid
+
         if speedHackEnabled then
-            humanoid.WalkSpeed = currentSpeedValue
+            humanoid.WalkSpeed = currentSpeedValue -- Apply slider's speed
         else
-            humanoid.WalkSpeed = originalWalkSpeed
+            humanoid.WalkSpeed = originalWalkSpeed -- Reset to original speed
         end
     end
 })
 
-CharacterSection:AddSlider({
-    Name = "Speed Amount",
-    Min = 1,
-    Max = 200,
-    Default = currentSpeedValue,
-    Increment = 1,
-    ValueName = "studs/s",
-    Callback = function(value)
-        currentSpeedValue = value
+-- Slider for Speed Amount
+-- Store the returned UI object in 'speedSliderObject'
+speedSliderObject = CharacterSection:AddSlider({
+    Name = "Speed Amount",           -- Display name of the slider
+    Min = 1,                         -- Minimum value for the slider
+    Max = 200,                       -- Maximum value for the slider
+    Default = currentSpeedValue,     -- Initial value (will be player's actual speed if different from 16, due to initialization)
+    Increment = 1,                   -- How much the value changes per step
+    ValueName = "studs/s",           -- Text to display next to the value (e.g., "100 studs/s")
+    Callback = function(value)       -- Function to run when the slider value changes
+        currentSpeedValue = value    -- Update our state variable
         print("Speed Hack Value Changed: " .. tostring(currentSpeedValue))
-        if speedHackEnabled then
+        if speedHackEnabled then     -- Only apply if the hack is enabled
             local _, _, humanoid = getPlayerCharacterHumanoid()
             if humanoid then
-                humanoid.WalkSpeed = currentSpeedValue
+                humanoid.WalkSpeed = currentSpeedValue -- Apply new speed
             end
         end
     end
 })
 
+-- Button to Reset Speed
 CharacterSection:AddButton({
-    Name = "Reset Speed",
-    Callback = function()
+    Name = "Reset Speed",            -- Display name of the button
+    Callback = function()            -- Function to run when the button is clicked
         local _, _, humanoid = getPlayerCharacterHumanoid()
         if humanoid then
-            humanoid.WalkSpeed = originalWalkSpeed
-            currentSpeedValue = originalWalkSpeed
+            humanoid.WalkSpeed = originalWalkSpeed -- Set humanoid's speed to original
+            currentSpeedValue = originalWalkSpeed  -- Update the backing variable for the slider
+
+            -- Update the slider's visual display to show the originalWalkSpeed
+            if speedSliderObject and speedSliderObject.SetValue then
+                speedSliderObject:SetValue(originalWalkSpeed, false) -- 'false' to not trigger slider's callback
+                print("Speed slider display reset to: " .. tostring(originalWalkSpeed))
+            end
+
             print("Speed reset to: " .. tostring(originalWalkSpeed) .. " studs/s")
+            -- Optional: Show a notification
             if OrionLib and OrionLib.MakeNotification then
                 OrionLib:MakeNotification({ Name = "Speed Reset", Content = "WalkSpeed reset to " .. tostring(originalWalkSpeed) .. " studs/s.", Time = 3 })
             end
@@ -144,10 +177,9 @@ CharacterSection:AddButton({
     end
 })
 
--- Add a small gap or separator if supported by the library, otherwise just list them
--- OrionLib might not have a dedicated separator, elements just stack.
+-- ========== JumpPower Hack UI Controls (similar structure to Speed Hack) ==========
 
--- ========== JumpPower Hack Controls ==========
+-- Toggle Button for JumpPower Hack
 CharacterSection:AddToggle({
     Name = "JumpPower Hack",
     Default = jumpPowerEnabled,
@@ -164,13 +196,15 @@ CharacterSection:AddToggle({
     end
 })
 
-CharacterSection:AddSlider({
+-- Slider for JumpPower Amount
+-- Store the returned UI object in 'jumpPowerSliderObject'
+jumpPowerSliderObject = CharacterSection:AddSlider({
     Name = "JumpPower Amount",
-    Min = 0,  -- Can jump with 0 power (effectively no jump)
-    Max = 500, -- Reasonably high jump
+    Min = 0,    -- Can set jump power to 0 (no jump)
+    Max = 500,  -- A reasonably high max jump power
     Default = currentJumpPowerValue,
     Increment = 1,
-    ValueName = "power", -- Optional suffix
+    ValueName = "power", -- Suffix like "50 power"
     Callback = function(value)
         currentJumpPowerValue = value
         print("JumpPower Value Changed: " .. tostring(currentJumpPowerValue))
@@ -183,6 +217,7 @@ CharacterSection:AddSlider({
     end
 })
 
+-- Button to Reset JumpPower
 CharacterSection:AddButton({
     Name = "Reset JumpPower",
     Callback = function()
@@ -190,6 +225,12 @@ CharacterSection:AddButton({
         if humanoid then
             humanoid.JumpPower = originalJumpPower
             currentJumpPowerValue = originalJumpPower
+
+            if jumpPowerSliderObject and jumpPowerSliderObject.SetValue then
+                jumpPowerSliderObject:SetValue(originalJumpPower, false)
+                print("JumpPower slider display reset to: " .. tostring(originalJumpPower))
+            end
+
             print("JumpPower reset to: " .. tostring(originalJumpPower))
             if OrionLib and OrionLib.MakeNotification then
                 OrionLib:MakeNotification({ Name = "JumpPower Reset", Content = "JumpPower reset to " .. tostring(originalJumpPower) .. ".", Time = 3 })
@@ -203,31 +244,47 @@ CharacterSection:AddButton({
     end
 })
 
--- ========== Continuous Enforcement Loop ==========
+-- ========== Initialization and Continuous Enforcement Logic ==========
+
+-- Call the initialization function once after all UI elements that might need updating are defined.
+-- This ensures sliders reflect the player's actual initial state if it's different from script defaults.
+initializeCharacterPropertiesAndSliders()
+
+-- Connect to the 'CharacterAdded' event. This fires when the player's character spawns or respawns.
+game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character)
+    task.wait(0.5) -- Wait a very short moment for the Humanoid and its properties to be fully loaded.
+    initializeCharacterPropertiesAndSliders() -- Re-initialize, in case game reset speeds or for fresh spawn.
+end)
+
+-- Run a function every frame (RenderStepped runs before frame rendering)
+-- This is used to continuously enforce the WalkSpeed and JumpPower if their respective hacks are enabled.
+-- This helps counteract game scripts that might try to reset these values.
 game:GetService("RunService").RenderStepped:Connect(function()
-    if speedHackEnabled or jumpPowerEnabled then -- Only run if at least one hack is on
+    if speedHackEnabled or jumpPowerEnabled then -- Only do work if at least one hack is on
         local _, _, humanoid = getPlayerCharacterHumanoid()
         if humanoid then
+            -- If speed hack is on AND current humanoid speed is not what our slider says it should be
             if speedHackEnabled and humanoid.WalkSpeed ~= currentSpeedValue then
-                humanoid.WalkSpeed = currentSpeedValue
+                humanoid.WalkSpeed = currentSpeedValue -- Force it to our value
             end
+            -- If jump power hack is on AND current humanoid jump power is not what our slider says
             if jumpPowerEnabled and humanoid.JumpPower ~= currentJumpPowerValue then
-                humanoid.JumpPower = currentJumpPowerValue
+                humanoid.JumpPower = currentJumpPowerValue -- Force it to our value
             end
         end
     end
 end)
 
--- ========== Initial Notification ==========
+-- ========== Initial "Loaded" Notification ==========
 if OrionLib and OrionLib.MakeNotification then
     OrionLib:MakeNotification({
         Name = "UnEasy Hub",
         Content = "Successfully Loaded!",
-        Image = "rbxassetid://13516625108",
-        Time = 5
+        Image = "rbxassetid://13516625108", -- Optional icon
+        Time = 5 -- Display for 5 seconds
     })
 else
     print("UnEasy Hub Loaded! (MakeNotification function not found in the loaded library, or library load failed)")
 end
 
-print("UnEasy Hub script initialized, written for OrionLib API.")
+print("UnEasy Hub script initialized, written for OrionLib API structure.")
