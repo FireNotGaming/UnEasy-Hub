@@ -143,10 +143,20 @@ CharacterSection:AddToggle({
     end
 })
 
--- Success notification
+-- First notification (before init)
 OrionLib:MakeNotification({
     Name = "UnEasy Hub",
-    Content = "All features loaded successfully!",
-    Time = 3,
+    Content = "All features prepared!",
+    Time = 2,
     Image = "rbxassetid://13516625108"
 })
+
+-- Final notification (before init)
+OrionLib:MakeNotification({
+    Name = "Ready",
+    Content = "Press F9 if UI doesn't appear!",
+    Time = 4
+})
+
+-- INITIALIZE AFTER NOTIFICATIONS (AS REQUESTED)
+OrionLib:Init()
