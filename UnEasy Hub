@@ -1,104 +1,114 @@
--- Removed HttpService, as game:HttpGet is typically used in exploits
-local UserInputService = game:GetService("UserInputService")
+-- Load ZezumeLib
+local ZezumeLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/GRPGaming/Key-System/refs/heads/Xycer-Hub-Script/ZusumeLib(Slider)"))()
 
--- Use game:HttpGet (often needs a second 'true' argument for raw content,
--- but Kavo examples usually show it without, implying their HttpGet returns body directly)
--- If this line still errors, try: game:HttpGet("URL_HERE", true)
-local kavoSource = game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua")
-if not kavoSource or string.sub(kavoSource, 1, 5) == "<!DOC" then -- Basic check for failed HTTP GET (e.g. GitHub page not raw)
-    warn("Failed to download Kavo UI Library. Check your internet or the URL. Source received:", kavoSource)
-    return
-end
-local success, Library = pcall(loadstring(kavoSource))
+-- Create the Window
+local Window = ZezumeLib:CreateWindow("UnEasy Hub")
 
-if not success or not Library then
-    warn("Failed to load Kavo UI Library from source. Error:", Library) -- 'Library' will be error message on pcall fail
-    return
-end
+-- Create the Main Tab
+local MainTab = Window:CreateTab("Main")
 
-local Window = Library.CreateLib("UnEasy Hub", "BloodTheme")
+-- Create the Character Section
+local CharacterSection = MainTab:CreateSection("Character")
 
--- It's crucial to ensure Window and Window.MainFrame exist after CreateLib
-if not Window or not Window.MainFrame then
-    warn("Kavo UI Library did not initialize correctly or Window.MainFrame is missing.")
-    if Window then
-        print("Window object exists, dumping properties:")
-        for i,v in pairs(Window) do
-            print(i,v)
+-- Variables to store Speed Hack state
+local speedHackEnabled = false
+local currentSpeedValue = 16 -- Default WalkSpeed
+local originalWalkSpeed = 16 -- To reset to
+
+-- Get Local Player and Character (utility function)
+local function getPlayerCharacterHumanoid()
+    local player = game:GetService("Players").LocalPlayer
+    if player then
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                -- Store original speed if not already stored and different
+                if originalWalkSpeed == 16 and humanoid.WalkSpeed ~= 16 then
+                    originalWalkSpeed = humanoid.WalkSpeed
+                end
+                return player, character, humanoid
+            end
         end
     end
-    return
+    return nil, nil, nil
 end
 
-local draggableFrame = Window.MainFrame
-
-if not draggableFrame or not draggableFrame:IsA("GuiObject") then
-    warn("Kavo-UI-Library Draggable: Could not find the main draggable frame (Window.MainFrame). Dragging will not work.")
-    return
+-- Ensure originalWalkSpeed is set on first humanoid appearance if not default 16
+local _, _, initialHumanoid = getPlayerCharacterHumanoid()
+if initialHumanoid and initialHumanoid.WalkSpeed ~= 16 then
+    originalWalkSpeed = initialHumanoid.WalkSpeed
+    if currentSpeedValue == 16 then -- If slider default is 16, update it to actual current
+        currentSpeedValue = originalWalkSpeed
+        -- If ZezumeLib sliders can be updated after creation, you might need to call a method here
+        -- For now, we assume the slider will be created with this potentially updated currentSpeedValue
+    end
 end
 
-draggableFrame.Active = true
-draggableFrame.Selectable = true
 
-local dragging = false
-local dragInput = nil
-local dragStart = nil
-local startPosition = nil
+-- Create the Toggle for Speed Hack
+-- This toggle will be named "Speed Hack" and controls the feature
+CharacterSection:CreateToggle(
+    "Speed Hack", -- Name of the toggle (this is the "Button To Toggle It On Off")
+    speedHackEnabled, -- Default value (false = off)
+    function(value) -- Callback function when toggled
+        speedHackEnabled = value
+        print("Speed Hack Toggled: " .. tostring(speedHackEnabled))
+        
+        local _, _, humanoid = getPlayerCharacterHumanoid()
+        if not humanoid then return end
 
-draggableFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1Down or input.UserInputType == Enum.UserInputType.Touch then
-        local focusedTextBox = UserInputService:GetFocusedTextBox()
-        -- Check if focusedTextBox exists and is a descendant of the main UI window
-        if focusedTextBox and Window.MainFrame and focusedTextBox:IsDescendantOf(Window.MainFrame) then
-            return
+        if speedHackEnabled then
+            humanoid.WalkSpeed = currentSpeedValue
+        else
+            humanoid.WalkSpeed = originalWalkSpeed -- Reset to original speed
         end
-
-        dragging = true
-        dragInput = input
-        dragStart = input.Position
-        startPosition = draggableFrame.Position
     end
-end)
+)
 
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and dragInput and input == dragInput then
-        local delta = input.Position - dragStart
-        draggableFrame.Position = UDim2.new(
-            startPosition.X.Scale,
-            startPosition.X.Offset + delta.X,
-            startPosition.Y.Scale,
-            startPosition.Y.Offset + delta.Y
-        )
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if dragging and dragInput and input == dragInput then
-        dragging = false
-        dragInput = nil
-    end
-end)
- 
-local Tab = Window:NewTab("Main")
-local Section = Tab:NewSection("Bonds")
-
-Section:NewButton("ButtonText", "ButtonInfo", function()
-    getgenv().BondFarmSetting = {
-        tweenDuration = 20,
-        AutoExecute = true,
-        CheckMissedBonds = true
-    }
-    
-    -- This also relies on game:HttpGet working in your executor
-    local bondScriptSource = game:HttpGet('https://raw.githubusercontent.com/DonjoScripts/Public-Scripts/refs/heads/Slap-Battles/TheFastestBondStealer.lua')
-    if bondScriptSource then
-        local suc, err = pcall(loadstring(bondScriptSource))
-        if not suc then
-            warn("Failed to load/run bond script:", err)
+-- Create the Slider for Speed Hack value
+-- This slider controls the *amount* for the "Speed Hack" feature
+CharacterSection:CreateSlider(
+    "Speed Amount", -- Name of the slider (describes what it controls)
+    1, -- Minimum speed value
+    200, -- Maximum speed value
+    currentSpeedValue, -- Default/current speed value
+    1, -- Increment (step)
+    function(value) -- Callback function when slider value changes
+        currentSpeedValue = value
+        print("Speed Hack Value Changed: " .. tostring(currentSpeedValue))
+        
+        if speedHackEnabled then -- Only apply if the hack is currently enabled
+            local _, _, humanoid = getPlayerCharacterHumanoid()
+            if humanoid then
+                humanoid.WalkSpeed = currentSpeedValue
+            end
         end
-    else
-        warn("Failed to download bond script.")
+    end,
+    "studs/s" -- Suffix to display next to the value (optional)
+)
+
+-- Game loop to continuously apply speed if character respawns or if state is managed externally
+-- This also helps if the game tries to reset walkspeed
+game:GetService("RunService").RenderStepped:Connect(function()
+    if speedHackEnabled then
+        local _, _, humanoid = getPlayerCharacterHumanoid()
+        if humanoid and humanoid.WalkSpeed ~= currentSpeedValue then
+            humanoid.WalkSpeed = currentSpeedValue
+        end
     end
 end)
 
-print("UnEasy Hub Initialized. Draggable UI should be active.")
+-- Notification (optional, for user feedback that script ran)
+ZezumeLib:Notify("UnEasy Hub Loaded!", "Welcome!", 5) -- Assuming a Notify function exists
+
+print("UnEasy Hub script initialized with ZezumeLib.")
+
+--[[
+Notes on interpretation for "A Slider With A Button To Toggle It On Of Off, Name: Speed Hack":
+- I've interpreted "Speed Hack" as the name of the *feature*.
+- The "Button To Toggle It On Off Off" is the `CreateToggle` element, which I've named "Speed Hack".
+- The "Slider" is the `CreateSlider` element, which I've named "Speed Amount" to clarify its purpose relative to the "Speed Hack" feature.
+- If you meant the slider UI element *itself* should be named "Speed Hack", you could change the `CreateSlider` name to "Speed Hack" and perhaps the `CreateToggle` name to "Enable Speed".
+  The current naming is generally more intuitive for users (feature name on the toggle, value descriptor on the slider).
+]]
