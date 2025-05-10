@@ -1,4 +1,4 @@
--- UnEasy Hub (Complete Mobile-Optimized)
+-- UnEasy Hub (Using Zesume Library)
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/GRPGaming/Key-System/refs/heads/Xycer-Hub-Script/ZusumeLib(Slider)"))()
 
 -- Original Variables
@@ -15,25 +15,31 @@ local flyEnabled = false
 local flySpeed = 25
 local bodyVelocity
 
--- Main Window (Original)
+-- Main Window (Zesume Style)
 local Window = OrionLib:MakeWindow({
     Name = "UnEasy Hub",
     HidePremium = false,
     SaveConfig = true,
-    ConfigFolder = "UnEasyHubConfig"
+    ConfigFolder = "UnEasyHubConfig",
+    IntroEnabled = false -- Disable Zesume intro if exists
 })
 
+-- Main Tab
 local MainTab = Window:MakeTab({
     Name = "Main",
     Icon = "rbxassetid://13516625108",
     PremiumOnly = false
 })
 
+-- Force Section Visibility
 local CharacterSection = MainTab:AddSection({
-    Name = "Character"
+    Name = "Character",
+    Visible = true -- Ensures section is expanded
 })
 
--- ===== SPEED HACK (ORIGINAL) =====
+----------------------
+-- SPEED HACK (VISIBLE)
+----------------------
 CharacterSection:AddToggle({
     Name = "Speed Hack",
     Default = false,
@@ -62,7 +68,9 @@ CharacterSection:AddSlider({
     end
 })
 
--- ===== JUMP HACK (ORIGINAL) =====
+-----------------------
+-- JUMP HACK (VISIBLE)
+-----------------------
 CharacterSection:AddToggle({
     Name = "Jump Hack",
     Default = false,
@@ -91,7 +99,9 @@ CharacterSection:AddSlider({
     end
 })
 
--- ===== NO CLIP (ORIGINAL) =====
+--------------------
+-- NO CLIP (ORIGINAL)
+--------------------
 CharacterSection:AddToggle({
     Name = "Noclip",
     Default = false,
@@ -108,7 +118,9 @@ CharacterSection:AddToggle({
     end
 })
 
--- ===== FLY TOGGLE (NEW) =====
+----------------
+-- FLY (NEW)
+----------------
 CharacterSection:AddToggle({
     Name = "Fly",
     Default = false,
@@ -118,29 +130,23 @@ CharacterSection:AddToggle({
         local root = character and character:FindFirstChild("HumanoidRootPart")
 
         if value and root then
-            -- Activate fly
+            -- Mobile-friendly fly
             bodyVelocity = Instance.new("BodyVelocity")
-            bodyVelocity.Velocity = Vector3.new(0, 0.5, 0)
+            bodyVelocity.Velocity = Vector3.new(0, 0.5, 0) -- Auto-hover
             bodyVelocity.MaxForce = Vector3.new(0, 9e9, 0)
-            bodyVelocity.P = 1250
+            bodyVelocity.P = 1250 -- Smoother for mobile
             bodyVelocity.Parent = root
-
-            -- Mobile hover control
-            game:GetService("RunService").Heartbeat:Connect(function()
-                if not flyEnabled or not bodyVelocity then return end
-                bodyVelocity.Velocity = Vector3.new(0, 0.5, 0) -- Auto-hover
-            end)
         elseif bodyVelocity then
-            -- Deactivate fly
             bodyVelocity:Destroy()
             bodyVelocity = nil
         end
     end
 })
 
--- Original notification
+-- Success notification
 OrionLib:MakeNotification({
     Name = "UnEasy Hub",
-    Content = "All features loaded!",
-    Time = 3
+    Content = "All features loaded successfully!",
+    Time = 3,
+    Image = "rbxassetid://13516625108"
 })
