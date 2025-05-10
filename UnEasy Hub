@@ -30,8 +30,8 @@ local CharacterSection = MainTab:AddSection({
 
 -- Variables to store Speed Hack state
 local speedHackEnabled = false
-local currentSpeedValue = 16 -- Default WalkSpeed
-local originalWalkSpeed = 16 -- To reset to
+local currentSpeedValue = 16 -- Default WalkSpeed, will be updated if actual speed is different
+local originalWalkSpeed = 16 -- To reset to, will be updated if actual speed is different
 
 -- Get Local Player and Character (utility function)
 local function getPlayerCharacterHumanoid()
@@ -41,9 +41,10 @@ local function getPlayerCharacterHumanoid()
         if character then
             local humanoid = character:FindFirstChildOfClass("Humanoid")
             if humanoid then
-                -- Store original speed if not already stored and different
+                -- Store original speed if not already stored or if it changed from default 16
                 if originalWalkSpeed == 16 and humanoid.WalkSpeed ~= 16 then
                     originalWalkSpeed = humanoid.WalkSpeed
+                    print("Original WalkSpeed captured:", originalWalkSpeed)
                 end
                 return player, character, humanoid
             end
@@ -53,20 +54,34 @@ local function getPlayerCharacterHumanoid()
 end
 
 -- Ensure originalWalkSpeed is set on first humanoid appearance if not default 16
-local _, _, initialHumanoid = getPlayerCharacterHumanoid()
-if initialHumanoid and initialHumanoid.WalkSpeed ~= 16 then
-    originalWalkSpeed = initialHumanoid.WalkSpeed
-    if currentSpeedValue == 16 then -- If slider default is 16, update it to actual current
-        currentSpeedValue = originalWalkSpeed
+-- and update currentSpeedValue to match if it's still the initial default
+local function initializeSpeeds()
+    local _, _, initialHumanoid = getPlayerCharacterHumanoid()
+    if initialHumanoid then
+        if originalWalkSpeed == 16 and initialHumanoid.WalkSpeed ~= 16 then
+            originalWalkSpeed = initialHumanoid.WalkSpeed
+            print("Initial Original WalkSpeed set to:", originalWalkSpeed)
+        end
+        -- If currentSpeedValue is still the script's default (16) and the actual speed is different,
+        -- update currentSpeedValue to reflect the actual current speed before any hacks.
+        if currentSpeedValue == 16 and initialHumanoid.WalkSpeed ~= 16 then
+             currentSpeedValue = initialHumanoid.WalkSpeed
+             print("Initial CurrentSpeedValue set to match actual:", currentSpeedValue)
+        end
     end
 end
+initializeSpeeds()
+game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.5) -- Wait for humanoid to be reliably present
+    initializeSpeeds()
+end)
+
 
 -- Create the Toggle for Speed Hack (using Orion's options table)
--- This toggle will be named "Speed Hack" and controls the feature
 CharacterSection:AddToggle({
-    Name = "Speed Hack", -- Name of the toggle (this is the "Button To Toggle It On Off")
-    Default = speedHackEnabled, -- Default value (false = off)
-    Callback = function(value) -- Callback function when toggled
+    Name = "Speed Hack",
+    Default = speedHackEnabled,
+    Callback = function(value)
         speedHackEnabled = value
         print("Speed Hack Toggled: " .. tostring(speedHackEnabled))
         
@@ -82,15 +97,14 @@ CharacterSection:AddToggle({
 })
 
 -- Create the Slider for Speed Hack value (using Orion's options table)
--- This slider controls the *amount* for the "Speed Hack" feature
 CharacterSection:AddSlider({
-    Name = "Speed Amount", -- Name of the slider (describes what it controls)
-    Min = 1, -- Minimum speed value
-    Max = 200, -- Maximum speed value
-    Default = currentSpeedValue, -- Default/current speed value
-    Increment = 1, -- Increment (step)
-    ValueName = "studs/s", -- Suffix to display next to the value (Orion's equivalent to suffix)
-    Callback = function(value) -- Callback function when slider value changes
+    Name = "Speed Amount",
+    Min = 1,
+    Max = 200,
+    Default = currentSpeedValue, -- Uses the potentially updated currentSpeedValue
+    Increment = 1,
+    ValueName = "studs/s",
+    Callback = function(value)
         currentSpeedValue = value
         print("Speed Hack Value Changed: " .. tostring(currentSpeedValue))
         
@@ -101,10 +115,47 @@ CharacterSection:AddSlider({
             end
         end
     end
+    -- Note: To make the slider visually update when "Reset Speed" is pressed,
+    -- the OrionLib would need to support updating a slider's value from its config variable,
+    -- or you'd need a direct reference to the slider object and an update method.
+    -- Changing `currentSpeedValue` will make the *logic* use the reset speed.
+})
+
+-- Create the Button to Reset Speed (using Orion's options table)
+CharacterSection:AddButton({
+    Name = "Reset Speed",
+    Callback = function()
+        local _, _, humanoid = getPlayerCharacterHumanoid()
+        if humanoid then
+            humanoid.WalkSpeed = originalWalkSpeed
+            currentSpeedValue = originalWalkSpeed -- Update the variable that backs the slider
+            
+            -- If the speed hack is currently enabled, it will now enforce the originalWalkSpeed
+            -- because the RenderStepped loop uses currentSpeedValue.
+            -- If the toggle is off, the speed is reset, and currentSpeedValue is now originalWalkSpeed.
+
+            print("Speed reset to: " .. tostring(originalWalkSpeed) .. " studs/s")
+            if OrionLib and OrionLib.MakeNotification then
+                OrionLib:MakeNotification({
+                    Name = "Speed Reset",
+                    Content = "WalkSpeed reset to " .. tostring(originalWalkSpeed) .. " studs/s.",
+                    Time = 3
+                })
+            end
+        else
+            print("Cannot reset speed: Player character or humanoid not found.")
+            if OrionLib and OrionLib.MakeNotification then
+                OrionLib:MakeNotification({
+                    Name = "Error",
+                    Content = "Could not find player to reset speed.",
+                    Time = 3
+                })
+            end
+        end
+    end
 })
 
 -- Game loop to continuously apply speed if character respawns or if state is managed externally
--- This also helps if the game tries to reset walkspeed
 game:GetService("RunService").RenderStepped:Connect(function()
     if speedHackEnabled then
         local _, _, humanoid = getPlayerCharacterHumanoid()
@@ -114,25 +165,16 @@ game:GetService("RunService").RenderStepped:Connect(function()
     end
 end)
 
--- Notification (optional, for user feedback that script ran, using Orion's API)
--- Check if MakeNotification function exists in the loaded library before calling
+-- Notification
 if OrionLib and OrionLib.MakeNotification then
     OrionLib:MakeNotification({
-        Name = "UnEasy Hub", -- Title of the notification
-        Content = "Successfully Loaded!", -- Message content
-        Image = "rbxassetid://13516625108", -- Optional image (Roblox logo again)
-        Time = 5 -- Duration in seconds
+        Name = "UnEasy Hub",
+        Content = "Successfully Loaded!",
+        Image = "rbxassetid://13516625108",
+        Time = 5
     })
 else
     print("UnEasy Hub Loaded! (MakeNotification function not found in the loaded library, or library load failed)")
 end
 
 print("UnEasy Hub script initialized, written for OrionLib API.")
-
---[[
-Key differences when using Orion's API structure:
-- UI elements are created using methods like `MakeWindow`, `MakeTab`, `AddSection`, `AddToggle`, `AddSlider`.
-- These methods take a single argument: an options table (e.g., `{ Name = "...", Default = ... }`).
-- Slider suffix is often handled by a `ValueName` or similar property in the options table.
-- Notifications also use an options table via `MakeNotification`.
-]]
