@@ -8,19 +8,30 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
     Name = "UnEasy Hub",
     LoadingTitle = "UnEasy Hub",
-    LoadingSubtitle = "by FireNotGaming",
+    LoadingSubtitle = "By FireNotGaming",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = "UnEasyHubConfig",
         FileName = "UnEasyHub"
     },
     Discord = {
-        Enabled = false
+        Enabled = false,
+        Invite = "noinvitelink",
+        RememberJoins = true
     },
-    KeySystem = false
+    KeySystem = false,
+    KeySettings = {
+        Title = "Untitled",
+        Subtitle = "Key System",
+        Note = "No method of obtaining the key is provided",
+        FileName = "Key",
+        SaveKey = true,
+        GrabKeyFromSite = false,
+        Key = {"Hello"}
+    }
 })
 
--- Create Main Tab and Character Section
+-- Main Tab & Section
 local MainTab = Window:CreateTab("Main", 13516625108)
 local CharacterSection = MainTab:CreateSection("Character")
 
