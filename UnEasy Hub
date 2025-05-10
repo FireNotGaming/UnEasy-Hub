@@ -11,15 +11,15 @@ end
 -- Create the Window (using Orion's options table)
 local Window = OrionLib:MakeWindow({
     Name = "UnEasy Hub",
-    HidePremium = false, -- Default Orion option
-    SaveConfig = true,   -- Default Orion option
-    ConfigFolder = "UnEasyHubConfig" -- Optional: folder name for saving settings
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "UnEasyHubConfig"
 })
 
 -- Create the Main Tab (using Orion's options table)
 local MainTab = Window:MakeTab({
     Name = "Main",
-    Icon = "rbxassetid://13516625108", -- Example icon (Roblox logo, can be changed or removed)
+    Icon = "rbxassetid://13516625108", -- Example icon
     PremiumOnly = false
 })
 
@@ -28,12 +28,18 @@ local CharacterSection = MainTab:AddSection({
     Name = "Character"
 })
 
--- Variables to store Speed Hack state
+-- ========== State Variables ==========
+-- Speed
 local speedHackEnabled = false
-local currentSpeedValue = 16 -- Default WalkSpeed, will be updated if actual speed is different
-local originalWalkSpeed = 16 -- To reset to, will be updated if actual speed is different
+local currentSpeedValue = 16 -- Default WalkSpeed
+local originalWalkSpeed = 16 -- To reset to
 
--- Get Local Player and Character (utility function)
+-- JumpPower
+local jumpPowerEnabled = false
+local currentJumpPowerValue = 50 -- Default JumpPower
+local originalJumpPower = 50 -- To reset to
+
+-- ========== Utility Functions ==========
 local function getPlayerCharacterHumanoid()
     local player = game:GetService("Players").LocalPlayer
     if player then
@@ -41,11 +47,6 @@ local function getPlayerCharacterHumanoid()
         if character then
             local humanoid = character:FindFirstChildOfClass("Humanoid")
             if humanoid then
-                -- Store original speed if not already stored or if it changed from default 16
-                if originalWalkSpeed == 16 and humanoid.WalkSpeed ~= 16 then
-                    originalWalkSpeed = humanoid.WalkSpeed
-                    print("Original WalkSpeed captured:", originalWalkSpeed)
-                end
                 return player, character, humanoid
             end
         end
@@ -53,119 +54,171 @@ local function getPlayerCharacterHumanoid()
     return nil, nil, nil
 end
 
--- Ensure originalWalkSpeed is set on first humanoid appearance if not default 16
--- and update currentSpeedValue to match if it's still the initial default
-local function initializeSpeeds()
-    local _, _, initialHumanoid = getPlayerCharacterHumanoid()
-    if initialHumanoid then
-        if originalWalkSpeed == 16 and initialHumanoid.WalkSpeed ~= 16 then
-            originalWalkSpeed = initialHumanoid.WalkSpeed
-            print("Initial Original WalkSpeed set to:", originalWalkSpeed)
+-- Function to initialize/update original character properties
+local function initializeCharacterProperties()
+    local _, _, humanoid = getPlayerCharacterHumanoid()
+    if humanoid then
+        -- Speed Properties
+        if originalWalkSpeed == 16 and humanoid.WalkSpeed ~= 16 then
+            originalWalkSpeed = humanoid.WalkSpeed
+            print("Original WalkSpeed captured:", originalWalkSpeed)
         end
-        -- If currentSpeedValue is still the script's default (16) and the actual speed is different,
-        -- update currentSpeedValue to reflect the actual current speed before any hacks.
-        if currentSpeedValue == 16 and initialHumanoid.WalkSpeed ~= 16 then
-             currentSpeedValue = initialHumanoid.WalkSpeed
+        if currentSpeedValue == 16 and humanoid.WalkSpeed ~= 16 then
+             currentSpeedValue = humanoid.WalkSpeed
              print("Initial CurrentSpeedValue set to match actual:", currentSpeedValue)
+        end
+
+        -- JumpPower Properties
+        if originalJumpPower == 50 and humanoid.JumpPower ~= 50 then
+            originalJumpPower = humanoid.JumpPower
+            print("Original JumpPower captured:", originalJumpPower)
+        end
+        if currentJumpPowerValue == 50 and humanoid.JumpPower ~= 50 then
+             currentJumpPowerValue = humanoid.JumpPower
+             print("Initial CurrentJumpPowerValue set to match actual:", currentJumpPowerValue)
         end
     end
 end
-initializeSpeeds()
-game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function()
+
+-- Initial setup and on respawn
+initializeCharacterProperties()
+game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character)
     task.wait(0.5) -- Wait for humanoid to be reliably present
-    initializeSpeeds()
+    initializeCharacterProperties()
 end)
 
 
--- Create the Toggle for Speed Hack (using Orion's options table)
+-- ========== Speed Hack Controls ==========
 CharacterSection:AddToggle({
     Name = "Speed Hack",
     Default = speedHackEnabled,
     Callback = function(value)
         speedHackEnabled = value
         print("Speed Hack Toggled: " .. tostring(speedHackEnabled))
-        
         local _, _, humanoid = getPlayerCharacterHumanoid()
         if not humanoid then return end
-
         if speedHackEnabled then
             humanoid.WalkSpeed = currentSpeedValue
         else
-            humanoid.WalkSpeed = originalWalkSpeed -- Reset to original speed
+            humanoid.WalkSpeed = originalWalkSpeed
         end
     end
 })
 
--- Create the Slider for Speed Hack value (using Orion's options table)
 CharacterSection:AddSlider({
     Name = "Speed Amount",
     Min = 1,
     Max = 200,
-    Default = currentSpeedValue, -- Uses the potentially updated currentSpeedValue
+    Default = currentSpeedValue,
     Increment = 1,
     ValueName = "studs/s",
     Callback = function(value)
         currentSpeedValue = value
         print("Speed Hack Value Changed: " .. tostring(currentSpeedValue))
-        
-        if speedHackEnabled then -- Only apply if the hack is currently enabled
+        if speedHackEnabled then
             local _, _, humanoid = getPlayerCharacterHumanoid()
             if humanoid then
                 humanoid.WalkSpeed = currentSpeedValue
             end
         end
     end
-    -- Note: To make the slider visually update when "Reset Speed" is pressed,
-    -- the OrionLib would need to support updating a slider's value from its config variable,
-    -- or you'd need a direct reference to the slider object and an update method.
-    -- Changing `currentSpeedValue` will make the *logic* use the reset speed.
 })
 
--- Create the Button to Reset Speed (using Orion's options table)
 CharacterSection:AddButton({
     Name = "Reset Speed",
     Callback = function()
         local _, _, humanoid = getPlayerCharacterHumanoid()
         if humanoid then
             humanoid.WalkSpeed = originalWalkSpeed
-            currentSpeedValue = originalWalkSpeed -- Update the variable that backs the slider
-            
-            -- If the speed hack is currently enabled, it will now enforce the originalWalkSpeed
-            -- because the RenderStepped loop uses currentSpeedValue.
-            -- If the toggle is off, the speed is reset, and currentSpeedValue is now originalWalkSpeed.
-
+            currentSpeedValue = originalWalkSpeed
             print("Speed reset to: " .. tostring(originalWalkSpeed) .. " studs/s")
             if OrionLib and OrionLib.MakeNotification then
-                OrionLib:MakeNotification({
-                    Name = "Speed Reset",
-                    Content = "WalkSpeed reset to " .. tostring(originalWalkSpeed) .. " studs/s.",
-                    Time = 3
-                })
+                OrionLib:MakeNotification({ Name = "Speed Reset", Content = "WalkSpeed reset to " .. tostring(originalWalkSpeed) .. " studs/s.", Time = 3 })
             end
         else
             print("Cannot reset speed: Player character or humanoid not found.")
             if OrionLib and OrionLib.MakeNotification then
-                OrionLib:MakeNotification({
-                    Name = "Error",
-                    Content = "Could not find player to reset speed.",
-                    Time = 3
-                })
+                OrionLib:MakeNotification({ Name = "Error", Content = "Could not find player to reset speed.", Time = 3 })
             end
         end
     end
 })
 
--- Game loop to continuously apply speed if character respawns or if state is managed externally
-game:GetService("RunService").RenderStepped:Connect(function()
-    if speedHackEnabled then
+-- Add a small gap or separator if supported by the library, otherwise just list them
+-- OrionLib might not have a dedicated separator, elements just stack.
+
+-- ========== JumpPower Hack Controls ==========
+CharacterSection:AddToggle({
+    Name = "JumpPower Hack",
+    Default = jumpPowerEnabled,
+    Callback = function(value)
+        jumpPowerEnabled = value
+        print("JumpPower Hack Toggled: " .. tostring(jumpPowerEnabled))
         local _, _, humanoid = getPlayerCharacterHumanoid()
-        if humanoid and humanoid.WalkSpeed ~= currentSpeedValue then
-            humanoid.WalkSpeed = currentSpeedValue
+        if not humanoid then return end
+        if jumpPowerEnabled then
+            humanoid.JumpPower = currentJumpPowerValue
+        else
+            humanoid.JumpPower = originalJumpPower
+        end
+    end
+})
+
+CharacterSection:AddSlider({
+    Name = "JumpPower Amount",
+    Min = 0,  -- Can jump with 0 power (effectively no jump)
+    Max = 500, -- Reasonably high jump
+    Default = currentJumpPowerValue,
+    Increment = 1,
+    ValueName = "power", -- Optional suffix
+    Callback = function(value)
+        currentJumpPowerValue = value
+        print("JumpPower Value Changed: " .. tostring(currentJumpPowerValue))
+        if jumpPowerEnabled then
+            local _, _, humanoid = getPlayerCharacterHumanoid()
+            if humanoid then
+                humanoid.JumpPower = currentJumpPowerValue
+            end
+        end
+    end
+})
+
+CharacterSection:AddButton({
+    Name = "Reset JumpPower",
+    Callback = function()
+        local _, _, humanoid = getPlayerCharacterHumanoid()
+        if humanoid then
+            humanoid.JumpPower = originalJumpPower
+            currentJumpPowerValue = originalJumpPower
+            print("JumpPower reset to: " .. tostring(originalJumpPower))
+            if OrionLib and OrionLib.MakeNotification then
+                OrionLib:MakeNotification({ Name = "JumpPower Reset", Content = "JumpPower reset to " .. tostring(originalJumpPower) .. ".", Time = 3 })
+            end
+        else
+            print("Cannot reset JumpPower: Player character or humanoid not found.")
+            if OrionLib and OrionLib.MakeNotification then
+                OrionLib:MakeNotification({ Name = "Error", Content = "Could not find player to reset JumpPower.", Time = 3 })
+            end
+        end
+    end
+})
+
+-- ========== Continuous Enforcement Loop ==========
+game:GetService("RunService").RenderStepped:Connect(function()
+    if speedHackEnabled or jumpPowerEnabled then -- Only run if at least one hack is on
+        local _, _, humanoid = getPlayerCharacterHumanoid()
+        if humanoid then
+            if speedHackEnabled and humanoid.WalkSpeed ~= currentSpeedValue then
+                humanoid.WalkSpeed = currentSpeedValue
+            end
+            if jumpPowerEnabled and humanoid.JumpPower ~= currentJumpPowerValue then
+                humanoid.JumpPower = currentJumpPowerValue
+            end
         end
     end
 end)
 
--- Notification
+-- ========== Initial Notification ==========
 if OrionLib and OrionLib.MakeNotification then
     OrionLib:MakeNotification({
         Name = "UnEasy Hub",
