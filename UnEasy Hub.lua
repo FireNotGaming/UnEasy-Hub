@@ -37,7 +37,7 @@ local flyEnabled = false
 local bodyVelocity = nil
 
 -- Speed Hack Toggle
-local SpeedToggle = MainTab:CreateToggle({
+local SpeedToggle = CharacterSection:CreateToggle({
     Name = "Speed Hack",
     Default = false,
     Flag = "SpeedHack",
