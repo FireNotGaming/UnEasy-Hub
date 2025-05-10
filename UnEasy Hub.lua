@@ -21,15 +21,14 @@ local Window = Rayfield:CreateWindow({
 })
 
 -- Create Main Tab and Character Section
-local MainTab = Window:CreateTab("Main", 13516625108) -- Title, Icon ID
+local MainTab = Window:CreateTab("Main", 13516625108)
 local CharacterSection = MainTab:CreateSection("Character")
 
--- Variables for Speed Hack
+-- Speed Hack
 local speedHackEnabled = false
 local currentSpeedValue = 16
 local originalWalkSpeed = 16
 
--- Speed Hack Toggle
 CharacterSection:CreateToggle({
     Name = "Speed Hack",
     CurrentValue = false,
@@ -42,7 +41,6 @@ CharacterSection:CreateToggle({
     end
 })
 
--- Speed Amount Slider
 CharacterSection:CreateSlider({
     Name = "Speed Amount",
     Range = {16, 200},
@@ -60,12 +58,11 @@ CharacterSection:CreateSlider({
     end
 })
 
--- Variables for Jump Hack
+-- Jump Hack
 local jumpHackEnabled = false
 local currentJumpValue = 50
 local originalJumpPower = 50
 
--- Jump Hack Toggle
 CharacterSection:CreateToggle({
     Name = "Jump Hack",
     CurrentValue = false,
@@ -78,7 +75,6 @@ CharacterSection:CreateToggle({
     end
 })
 
--- Jump Amount Slider
 CharacterSection:CreateSlider({
     Name = "Jump Amount",
     Range = {50, 200},
@@ -96,7 +92,7 @@ CharacterSection:CreateSlider({
     end
 })
 
--- Noclip Toggle
+-- Noclip
 local noclipEnabled = false
 CharacterSection:CreateToggle({
     Name = "Noclip",
@@ -115,28 +111,66 @@ CharacterSection:CreateToggle({
     end
 })
 
--- Fly Toggle
-local flyEnabled = false
+-- Fly (Infinite Yield Style)
+local UIS = game:GetService("UserInputService")
+local flyToggle = false
+local flying = false
+local flySpeed = 50
+local flyVelocity, flyGyro
+
 CharacterSection:CreateToggle({
     Name = "Fly",
     CurrentValue = false,
     Callback = function(value)
-        flyEnabled = value
         local player = game.Players.LocalPlayer
-        local character = player.Character
-        if character then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                if value then
-                    -- Enable fly by setting PlatformStand to true
-                    humanoid.PlatformStand = true
-                    -- Additional fly logic can be implemented here
-                else
-                    -- Disable fly
-                    humanoid.PlatformStand = false
+        local char = player.Character or player.CharacterAdded:Wait()
+        local root = char:FindFirstChild("HumanoidRootPart")
+
+        if value then
+            flyToggle = true
+            flying = true
+
+            flyVelocity = Instance.new("BodyVelocity")
+            flyVelocity.Velocity = Vector3.new(0, 0, 0)
+            flyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            flyVelocity.P = 1250
+            flyVelocity.Parent = root
+
+            flyGyro = Instance.new("BodyGyro")
+            flyGyro.D = 10
+            flyGyro.P = 10000
+            flyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+            flyGyro.CFrame = root.CFrame
+            flyGyro.Parent = root
+
+            task.spawn(function()
+                while flyToggle do
+                    local cam = workspace.CurrentCamera
+                    flyVelocity.Velocity = 
+                        (cam.CFrame.LookVector * (UIS:IsKeyDown(Enum.KeyCode.W) and flySpeed or 0)) +
+                        (cam.CFrame.RightVector * ((UIS:IsKeyDown(Enum.KeyCode.D) and flySpeed or 0) - (UIS:IsKeyDown(Enum.KeyCode.A) and flySpeed or 0))) +
+                        (cam.CFrame.UpVector * ((UIS:IsKeyDown(Enum.KeyCode.Space) and flySpeed or 0) - (UIS:IsKeyDown(Enum.KeyCode.LeftControl) and flySpeed or 0)))
+                    flyGyro.CFrame = cam.CFrame
+                    task.wait()
                 end
-            end
+            end)
+        else
+            flyToggle = false
+            flying = false
+            if flyVelocity then flyVelocity:Destroy() end
+            if flyGyro then flyGyro:Destroy() end
         end
+    end
+})
+
+CharacterSection:CreateSlider({
+    Name = "Fly Speed",
+    Range = {10, 200},
+    Increment = 5,
+    Suffix = "speed",
+    CurrentValue = 50,
+    Callback = function(value)
+        flySpeed = value
     end
 })
 
