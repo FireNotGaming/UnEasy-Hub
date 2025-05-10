@@ -1,48 +1,38 @@
--- UnEasy Hub (Using Zesume Library)
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/GRPGaming/Key-System/refs/heads/Xycer-Hub-Script/ZusumeLib(Slider)"))()
+-- Enable Secure Mode for Rayfield
+getgenv().SecureMode = true
 
--- Original Variables
+-- Load Rayfield Library
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+-- Create Main Window
+local Window = Rayfield:CreateWindow({
+    Name = "UnEasy Hub",
+    LoadingTitle = "UnEasy Hub",
+    LoadingSubtitle = "by FireNotGaming",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "UnEasyHubConfig",
+        FileName = "UnEasyHub"
+    },
+    Discord = {
+        Enabled = false
+    },
+    KeySystem = false
+})
+
+-- Create Main Tab and Character Section
+local MainTab = Window:CreateTab("Main", 13516625108) -- Title, Icon ID
+local CharacterSection = MainTab:CreateSection("Character")
+
+-- Variables for Speed Hack
 local speedHackEnabled = false
 local currentSpeedValue = 16
 local originalWalkSpeed = 16
 
-local jumpPowerEnabled = false
-local currentJumpPowerValue = 50
-local originalJumpPower = 50
-
-local noclipEnabled = false
-local flyEnabled = false
-local flySpeed = 25
-local bodyVelocity
-
--- Main Window (Zesume Style)
-local Window = OrionLib:MakeWindow({
-    Name = "UnEasy Hub",
-    HidePremium = false,
-    SaveConfig = true,
-    ConfigFolder = "UnEasyHubConfig",
-    IntroEnabled = false -- Disable Zesume intro if exists
-})
-
--- Main Tab
-local MainTab = Window:MakeTab({
-    Name = "Main",
-    Icon = "rbxassetid://13516625108",
-    PremiumOnly = false
-})
-
--- Force Section Visibility
-local CharacterSection = MainTab:AddSection({
-    Name = "Character",
-    Visible = true -- Ensures section is expanded
-})
-
-----------------------
--- SPEED HACK (VISIBLE)
-----------------------
-CharacterSection:AddToggle({
+-- Speed Hack Toggle
+CharacterSection:CreateToggle({
     Name = "Speed Hack",
-    Default = false,
+    CurrentValue = false,
     Callback = function(value)
         speedHackEnabled = value
         local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
@@ -52,64 +42,71 @@ CharacterSection:AddToggle({
     end
 })
 
-CharacterSection:AddSlider({
+-- Speed Amount Slider
+CharacterSection:CreateSlider({
     Name = "Speed Amount",
-    Min = 16,
-    Max = 200,
-    Default = 16,
+    Range = {16, 200},
     Increment = 1,
-    ValueName = "studs",
+    Suffix = "studs",
+    CurrentValue = 16,
     Callback = function(value)
         currentSpeedValue = value
         if speedHackEnabled then
             local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid then humanoid.WalkSpeed = value end
+            if humanoid then
+                humanoid.WalkSpeed = value
+            end
         end
     end
 })
 
------------------------
--- JUMP HACK (VISIBLE)
------------------------
-CharacterSection:AddToggle({
+-- Variables for Jump Hack
+local jumpHackEnabled = false
+local currentJumpValue = 50
+local originalJumpPower = 50
+
+-- Jump Hack Toggle
+CharacterSection:CreateToggle({
     Name = "Jump Hack",
-    Default = false,
+    CurrentValue = false,
     Callback = function(value)
-        jumpPowerEnabled = value
+        jumpHackEnabled = value
         local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if humanoid then
-            humanoid.JumpPower = value and currentJumpPowerValue or originalJumpPower
+            humanoid.JumpPower = value and currentJumpValue or originalJumpPower
         end
     end
 })
 
-CharacterSection:AddSlider({
-    Name = "Jump Power",
-    Min = 50,
-    Max = 500,
-    Default = 50,
-    Increment = 5,
-    ValueName = "power",
+-- Jump Amount Slider
+CharacterSection:CreateSlider({
+    Name = "Jump Amount",
+    Range = {50, 200},
+    Increment = 1,
+    Suffix = "power",
+    CurrentValue = 50,
     Callback = function(value)
-        currentJumpPowerValue = value
-        if jumpPowerEnabled then
+        currentJumpValue = value
+        if jumpHackEnabled then
             local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid then humanoid.JumpPower = value end
+            if humanoid then
+                humanoid.JumpPower = value
+            end
         end
     end
 })
 
---------------------
--- NO CLIP (ORIGINAL)
---------------------
-CharacterSection:AddToggle({
+-- Noclip Toggle
+local noclipEnabled = false
+CharacterSection:CreateToggle({
     Name = "Noclip",
-    Default = false,
+    CurrentValue = false,
     Callback = function(value)
         noclipEnabled = value
-        local character = game.Players.LocalPlayer.Character
+        local player = game.Players.LocalPlayer
+        local character = player.Character
         if character then
-            for _, part in ipairs(character:GetDescendants()) do
+            for _, part in pairs(character:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = not value
                 end
@@ -118,45 +115,34 @@ CharacterSection:AddToggle({
     end
 })
 
-----------------
--- FLY (NEW)
-----------------
-CharacterSection:AddToggle({
+-- Fly Toggle
+local flyEnabled = false
+CharacterSection:CreateToggle({
     Name = "Fly",
-    Default = false,
+    CurrentValue = false,
     Callback = function(value)
         flyEnabled = value
-        local character = game.Players.LocalPlayer.Character
-        local root = character and character:FindFirstChild("HumanoidRootPart")
-
-        if value and root then
-            -- Mobile-friendly fly
-            bodyVelocity = Instance.new("BodyVelocity")
-            bodyVelocity.Velocity = Vector3.new(0, 0.5, 0) -- Auto-hover
-            bodyVelocity.MaxForce = Vector3.new(0, 9e9, 0)
-            bodyVelocity.P = 1250 -- Smoother for mobile
-            bodyVelocity.Parent = root
-        elseif bodyVelocity then
-            bodyVelocity:Destroy()
-            bodyVelocity = nil
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                if value then
+                    -- Enable fly by setting PlatformStand to true
+                    humanoid.PlatformStand = true
+                    -- Additional fly logic can be implemented here
+                else
+                    -- Disable fly
+                    humanoid.PlatformStand = false
+                end
+            end
         end
     end
 })
 
--- First notification (before init)
-OrionLib:MakeNotification({
-    Name = "UnEasy Hub",
+-- Notification
+Rayfield:Notify({
+    Title = "UnEasy Hub",
     Content = "All features prepared!",
-    Time = 2,
-    Image = "rbxassetid://13516625108"
+    Duration = 2
 })
-
--- Final notification (before init)
-OrionLib:MakeNotification({
-    Name = "Ready",
-    Content = "Press F9 if UI doesn't appear!",
-    Time = 4
-})
-
--- INITIALIZE AFTER NOTIFICATIONS (AS REQUESTED)
-OrionLib:Init()
