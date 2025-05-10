@@ -1,14 +1,32 @@
--- Load ZezumeLib
-local ZezumeLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/GRPGaming/Key-System/refs/heads/Xycer-Hub-Script/ZusumeLib(Slider)"))()
+-- Load the library (still pointing to ZezumeLib as per your initial link,
+-- but we will call it OrionLib and use Orion's API structure)
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/GRPGaming/Key-System/refs/heads/Xycer-Hub-Script/ZusumeLib(Slider)"))()
 
--- Create the Window
-local Window = ZezumeLib:CreateWindow("UnEasy Hub")
+-- If the loaded library is nil or not a table, it means loading failed or it's not a standard library.
+if not OrionLib or type(OrionLib) ~= "table" then
+    warn("Failed to load the library or it's not in the expected format. Script will not run correctly.")
+    return
+end
 
--- Create the Main Tab
-local MainTab = Window:CreateTab("Main")
+-- Create the Window (using Orion's options table)
+local Window = OrionLib:MakeWindow({
+    Name = "UnEasy Hub",
+    HidePremium = false, -- Default Orion option
+    SaveConfig = true,   -- Default Orion option
+    ConfigFolder = "UnEasyHubConfig" -- Optional: folder name for saving settings
+})
 
--- Create the Character Section
-local CharacterSection = MainTab:CreateSection("Character")
+-- Create the Main Tab (using Orion's options table)
+local MainTab = Window:MakeTab({
+    Name = "Main",
+    Icon = "rbxassetid://13516625108", -- Example icon (Roblox logo, can be changed or removed)
+    PremiumOnly = false
+})
+
+-- Create the Character Section (using Orion's options table)
+local CharacterSection = MainTab:AddSection({
+    Name = "Character"
+})
 
 -- Variables to store Speed Hack state
 local speedHackEnabled = false
@@ -40,18 +58,15 @@ if initialHumanoid and initialHumanoid.WalkSpeed ~= 16 then
     originalWalkSpeed = initialHumanoid.WalkSpeed
     if currentSpeedValue == 16 then -- If slider default is 16, update it to actual current
         currentSpeedValue = originalWalkSpeed
-        -- If ZezumeLib sliders can be updated after creation, you might need to call a method here
-        -- For now, we assume the slider will be created with this potentially updated currentSpeedValue
     end
 end
 
-
--- Create the Toggle for Speed Hack
+-- Create the Toggle for Speed Hack (using Orion's options table)
 -- This toggle will be named "Speed Hack" and controls the feature
-CharacterSection:CreateToggle(
-    "Speed Hack", -- Name of the toggle (this is the "Button To Toggle It On Off")
-    speedHackEnabled, -- Default value (false = off)
-    function(value) -- Callback function when toggled
+CharacterSection:AddToggle({
+    Name = "Speed Hack", -- Name of the toggle (this is the "Button To Toggle It On Off")
+    Default = speedHackEnabled, -- Default value (false = off)
+    Callback = function(value) -- Callback function when toggled
         speedHackEnabled = value
         print("Speed Hack Toggled: " .. tostring(speedHackEnabled))
         
@@ -64,17 +79,18 @@ CharacterSection:CreateToggle(
             humanoid.WalkSpeed = originalWalkSpeed -- Reset to original speed
         end
     end
-)
+})
 
--- Create the Slider for Speed Hack value
+-- Create the Slider for Speed Hack value (using Orion's options table)
 -- This slider controls the *amount* for the "Speed Hack" feature
-CharacterSection:CreateSlider(
-    "Speed Amount", -- Name of the slider (describes what it controls)
-    1, -- Minimum speed value
-    200, -- Maximum speed value
-    currentSpeedValue, -- Default/current speed value
-    1, -- Increment (step)
-    function(value) -- Callback function when slider value changes
+CharacterSection:AddSlider({
+    Name = "Speed Amount", -- Name of the slider (describes what it controls)
+    Min = 1, -- Minimum speed value
+    Max = 200, -- Maximum speed value
+    Default = currentSpeedValue, -- Default/current speed value
+    Increment = 1, -- Increment (step)
+    ValueName = "studs/s", -- Suffix to display next to the value (Orion's equivalent to suffix)
+    Callback = function(value) -- Callback function when slider value changes
         currentSpeedValue = value
         print("Speed Hack Value Changed: " .. tostring(currentSpeedValue))
         
@@ -84,9 +100,8 @@ CharacterSection:CreateSlider(
                 humanoid.WalkSpeed = currentSpeedValue
             end
         end
-    end,
-    "studs/s" -- Suffix to display next to the value (optional)
-)
+    end
+})
 
 -- Game loop to continuously apply speed if character respawns or if state is managed externally
 -- This also helps if the game tries to reset walkspeed
@@ -99,16 +114,25 @@ game:GetService("RunService").RenderStepped:Connect(function()
     end
 end)
 
--- Notification (optional, for user feedback that script ran)
-ZezumeLib:Notify("UnEasy Hub Loaded!", "Welcome!", 5) -- Assuming a Notify function exists
+-- Notification (optional, for user feedback that script ran, using Orion's API)
+-- Check if MakeNotification function exists in the loaded library before calling
+if OrionLib and OrionLib.MakeNotification then
+    OrionLib:MakeNotification({
+        Name = "UnEasy Hub", -- Title of the notification
+        Content = "Successfully Loaded!", -- Message content
+        Image = "rbxassetid://13516625108", -- Optional image (Roblox logo again)
+        Time = 5 -- Duration in seconds
+    })
+else
+    print("UnEasy Hub Loaded! (MakeNotification function not found in the loaded library, or library load failed)")
+end
 
-print("UnEasy Hub script initialized with ZezumeLib.")
+print("UnEasy Hub script initialized, written for OrionLib API.")
 
 --[[
-Notes on interpretation for "A Slider With A Button To Toggle It On Of Off, Name: Speed Hack":
-- I've interpreted "Speed Hack" as the name of the *feature*.
-- The "Button To Toggle It On Off Off" is the `CreateToggle` element, which I've named "Speed Hack".
-- The "Slider" is the `CreateSlider` element, which I've named "Speed Amount" to clarify its purpose relative to the "Speed Hack" feature.
-- If you meant the slider UI element *itself* should be named "Speed Hack", you could change the `CreateSlider` name to "Speed Hack" and perhaps the `CreateToggle` name to "Enable Speed".
-  The current naming is generally more intuitive for users (feature name on the toggle, value descriptor on the slider).
+Key differences when using Orion's API structure:
+- UI elements are created using methods like `MakeWindow`, `MakeTab`, `AddSection`, `AddToggle`, `AddSlider`.
+- These methods take a single argument: an options table (e.g., `{ Name = "...", Default = ... }`).
+- Slider suffix is often handled by a `ValueName` or similar property in the options table.
+- Notifications also use an options table via `MakeNotification`.
 ]]
